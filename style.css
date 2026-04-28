@@ -273,7 +273,7 @@ input[type="number"] {
 .preview-stage {
   display: flex;
   justify-content: center;
-  overflow: auto;
+  align-items: center;
 }
 
 #editorCanvas,
@@ -291,8 +291,8 @@ input[type="number"] {
 }
 
 #previewCanvas {
-  flex: 0 0 auto;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
 }
 
 .preview-panel {

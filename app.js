@@ -57,7 +57,6 @@ const fpsInput = document.getElementById("fpsInput");
 const normalizeSidePaddingInput = document.getElementById("normalizeSidePaddingInput");
 const normalizeTopPaddingInput = document.getElementById("normalizeTopPaddingInput");
 const normalizeBottomPaddingInput = document.getElementById("normalizeBottomPaddingInput");
-const previewZoomInput = document.getElementById("previewZoomInput");
 const previewFpsInput = document.getElementById("previewFpsInput");
 const previewFrameHoldInput = document.getElementById("previewFrameHoldInput");
 const previewPauseInput = document.getElementById("previewPauseInput");
@@ -127,7 +126,6 @@ function readInputs() {
     normalizeSidePadding: Number(normalizeSidePaddingInput.value),
     normalizeTopPadding: Number(normalizeTopPaddingInput.value),
     normalizeBottomPadding: Number(normalizeBottomPaddingInput.value),
-    previewZoom: Number(previewZoomInput.value),
     previewFps: Number(previewFpsInput.value),
     previewFrameHold: Number(previewFrameHoldInput.value),
     previewPause: Number(previewPauseInput.value),
@@ -163,6 +161,48 @@ function setNumericInput(input, value, fallback = input.value) {
 
 function setCheckboxInput(input, value) {
   input.checked = Boolean(value);
+}
+
+function buildGridBoxes(boxes, cellWidth, cellHeight, framesPerRow, imageWidth, imageHeight) {
+  const cols = Math.max(1, framesPerRow);
+  return boxes.map((box, index) => {
+    const x = (index % cols) * cellWidth;
+    const y = Math.floor(index / cols) * cellHeight;
+    return {
+      x: clamp(x, 0, Math.max(0, imageWidth - 1)),
+      y: clamp(y, 0, Math.max(0, imageHeight - 1)),
+      width: Math.min(cellWidth, Math.max(1, imageWidth - x)),
+      height: Math.min(cellHeight, Math.max(1, imageHeight - y)),
+      hold: getBoxHold(box),
+    };
+  });
+}
+
+function shouldRestoreAsGrid(project, savedBoxes, exportSettings) {
+  if (!state.image || !savedBoxes.length) return false;
+
+  const framesPerRow = Math.max(1, Number(exportSettings.framesPerRow || 1));
+  const cellWidth = Math.max(1, Number(exportSettings.cellWidth || 1));
+  const cellHeight = Math.max(1, Number(exportSettings.cellHeight || 1));
+  const rows = Math.max(1, Math.ceil(savedBoxes.length / framesPerRow));
+  const normalizedWidth = framesPerRow * cellWidth;
+  const normalizedHeight = rows * cellHeight;
+  const matchesNormalizedSheet =
+    state.image.width === normalizedWidth && state.image.height === normalizedHeight;
+
+  if (project?.sourceImage?.width && project?.sourceImage?.height) {
+    const matchesSourceSheet =
+      state.image.width === Number(project.sourceImage.width) &&
+      state.image.height === Number(project.sourceImage.height) &&
+      (!project.image || state.imageName === project.image);
+    return matchesNormalizedSheet && !matchesSourceSheet;
+  }
+
+  if (project?.image && state.imageName !== project.image) {
+    return matchesNormalizedSheet;
+  }
+
+  return false;
 }
 
 function normalizeHexColor(value) {
@@ -403,7 +443,6 @@ function drawPreview() {
     cellWidth,
     cellHeight,
     framesPerRow,
-    previewZoom,
     previewBg,
     previewOpacity,
   } = readInputs();
@@ -425,7 +464,7 @@ function drawPreview() {
     drawPreviewGuides(previewCtx, cellWidth, cellHeight, null, readInputs());
   }
 
-  previewCanvas.style.width = `${cellWidth * previewZoom}px`;
+  previewCanvas.style.width = "100%";
   updateInspector();
   drawExportPreview(cellWidth, cellHeight, framesPerRow, {
     includeBackground: true,
@@ -590,7 +629,6 @@ function applyProjectData(project) {
   setNumericInput(previewSubLoopEndInput, subLoop.endFrame, 2);
   setNumericInput(previewSubLoopRepeatsInput, subLoop.repeats, 2);
 
-  setNumericInput(previewZoomInput, preview.zoom, 2);
   previewBgInput.value = preview.backgroundColor || "#ffffff";
   setNumericInput(previewOpacityInput, preview.backgroundOpacity, 0);
   setNumericInput(previewGridStepInput, preview.gridStep, 32);
@@ -598,7 +636,16 @@ function applyProjectData(project) {
   setCheckboxInput(previewShowRulersInput, preview.showRulers ?? true);
   setCheckboxInput(previewShowFitBoxInput, preview.showFitBox ?? true);
 
-  state.boxes = boxes;
+  state.boxes = shouldRestoreAsGrid(project, boxes, exportSettings)
+    ? buildGridBoxes(
+        boxes,
+        Number(exportSettings.cellWidth || cellWidthInput.value),
+        Number(exportSettings.cellHeight || cellHeightInput.value),
+        Number(exportSettings.framesPerRow || framesPerRowInput.value),
+        state.image.width,
+        state.image.height
+      )
+    : boxes;
   state.selectedIndex = boxes.length ? 0 : -1;
   resetPreviewPlaybackState();
   updateInspector();
@@ -942,6 +989,12 @@ function downloadJson() {
   const payload = {
     version: 1,
     image: state.imageName,
+    sourceImage: state.image
+      ? {
+          width: state.image.width,
+          height: state.image.height,
+        }
+      : null,
     boxes: state.boxes.map((box, index) => ({ id: index + 1, ...box, hold: getBoxHold(box) })),
     export: {
       cellWidth: Number(cellWidthInput.value),
@@ -964,7 +1017,6 @@ function downloadJson() {
       },
     },
     preview: {
-      zoom: Number(previewZoomInput.value),
       backgroundColor: previewBgInput.value.trim(),
       backgroundOpacity: Number(previewOpacityInput.value),
       gridStep: Number(previewGridStepInput.value),
@@ -1168,7 +1220,7 @@ playPauseBtn.addEventListener("click", () => {
   updateInspector();
 });
 
-[toleranceInput, minAreaInput, paddingInput, mergeGapInput, cellWidthInput, cellHeightInput, framesPerRowInput, fpsInput, normalizeSidePaddingInput, normalizeTopPaddingInput, normalizeBottomPaddingInput, previewZoomInput, previewFpsInput, previewFrameHoldInput, previewPauseInput, previewBgInput, previewOpacityInput, previewGridStepInput, previewSubLoopEnabledInput, previewSubLoopStartInput, previewSubLoopEndInput, previewSubLoopRepeatsInput, previewShowGridInput, previewShowRulersInput, previewShowFitBoxInput].forEach((input) => {
+[toleranceInput, minAreaInput, paddingInput, mergeGapInput, cellWidthInput, cellHeightInput, framesPerRowInput, fpsInput, normalizeSidePaddingInput, normalizeTopPaddingInput, normalizeBottomPaddingInput, previewFpsInput, previewFrameHoldInput, previewPauseInput, previewBgInput, previewOpacityInput, previewGridStepInput, previewSubLoopEnabledInput, previewSubLoopStartInput, previewSubLoopEndInput, previewSubLoopRepeatsInput, previewShowGridInput, previewShowRulersInput, previewShowFitBoxInput].forEach((input) => {
   input.addEventListener("input", () => {
     state.previewAccum = 0;
     state.previewPauseRemaining = 0;
