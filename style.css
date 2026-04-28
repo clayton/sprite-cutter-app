@@ -1,0 +1,400 @@
+:root {
+  --bg: #07111d;
+  --panel: rgba(14, 23, 37, 0.94);
+  --panel-2: #1a2538;
+  --panel-3: #0d1625;
+  --line: rgba(109, 145, 194, 0.22);
+  --line-strong: rgba(109, 145, 194, 0.38);
+  --ink: #eef5ff;
+  --muted: #9baecc;
+  --accent: #61c8ff;
+  --accent-2: #7ce4b1;
+  --shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family:
+    "Avenir Next",
+    "SF Pro Display",
+    "Segoe UI",
+    sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(97, 200, 255, 0.12), transparent 20%),
+    radial-gradient(circle at bottom right, rgba(124, 228, 177, 0.08), transparent 16%),
+    linear-gradient(180deg, #08111d 0%, #060d18 100%);
+}
+
+.app-shell {
+  width: min(1600px, calc(100vw - 14px));
+  margin: 7px auto;
+}
+
+.topbar,
+.panel,
+.section-body {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 18px;
+}
+
+.title-block {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(1.6rem, 2.3vw, 2.2rem);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+}
+
+h2 {
+  font-size: 1.38rem;
+  letter-spacing: -0.03em;
+}
+
+.lede,
+.hint,
+.muted,
+label,
+.selection-meta {
+  color: var(--muted);
+}
+
+.lede {
+  margin: 0;
+  font-size: 0.94rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.file-pill {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-pill input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+button,
+.file-pill span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 13px;
+  border: 1px solid rgba(97, 200, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(34, 53, 83, 0.98) 0%, rgba(21, 34, 55, 0.98) 100%);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease;
+}
+
+button:hover,
+.file-pill:hover span {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="range"] {
+  width: 100%;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+input[type="text"],
+input[type="number"] {
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+.workspace {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (min-width: 980px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1.1fr) minmax(360px, 430px);
+    align-items: start;
+  }
+}
+
+.control-column {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.preview-column {
+  align-self: start;
+}
+
+@media (min-width: 980px) {
+  .preview-column {
+    position: sticky;
+    top: 8px;
+  }
+}
+
+.dock-section {
+  margin: 0;
+}
+
+.dock-section summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 4px 8px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dock-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.dock-section summary span:first-child {
+  font-size: 1.28rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.dock-section[open] summary {
+  padding-bottom: 8px;
+}
+
+.section-body,
+.panel {
+  border-radius: 18px;
+}
+
+.section-body {
+  padding: 14px;
+}
+
+.editor-panel {
+  padding: 10px;
+}
+
+.compact-panel {
+  padding: 14px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.editor-stage,
+.preview-stage,
+.sheet-preview {
+  margin-top: 10px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    var(--panel-3);
+  background-size: 20px 20px, 20px 20px, auto;
+}
+
+.editor-stage {
+  padding: 8px;
+  max-height: 46vh;
+  overflow: auto;
+}
+
+.preview-stage,
+.sheet-preview {
+  padding: 12px;
+}
+
+.preview-stage {
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+}
+
+#editorCanvas,
+#previewCanvas,
+#sheetCanvas {
+  display: block;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+#editorCanvas,
+#sheetCanvas {
+  width: 100%;
+}
+
+#previewCanvas {
+  flex: 0 0 auto;
+  max-width: none;
+}
+
+.preview-panel {
+  padding: 14px;
+}
+
+.preview-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.transport-row button {
+  flex: 1 1 0;
+}
+
+.compact-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+@media (min-width: 560px) {
+  .compact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.preview-grid {
+  margin-top: 10px;
+}
+
+.selection-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.compact-meta,
+.selection-fields {
+  margin-top: 8px;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.dense-row button {
+  flex: 1 1 120px;
+}
+
+.opacity-field span {
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.toggle-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+
+.hint {
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 979px) {
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .title-block {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    width: calc(100vw - 8px);
+    margin: 4px auto;
+  }
+
+  .topbar,
+  .section-body,
+  .panel {
+    border-radius: 16px;
+  }
+
+  .compact-grid {
+    grid-template-columns: 1fr;
+  }
+}

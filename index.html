@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sprite Cutter</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="title-block">
+          <h1>Sprite Cutter</h1>
+          <p class="lede">Crop, normalize, preview, export.</p>
+        </div>
+        <div class="header-actions">
+          <label class="file-pill">
+            <input id="fileInput" type="file" accept="image/png,image/webp,image/jpeg" />
+            <span>Upload</span>
+          </label>
+          <label class="file-pill">
+            <input id="projectFileInput" type="file" accept="application/json,.json" />
+            <span>Load JSON</span>
+          </label>
+          <button id="loadSampleBtn" type="button">Load Sample</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="control-column">
+          <details class="dock-section editor-section" open>
+            <summary>
+              <span>Editor</span>
+              <span id="imageMeta" class="muted">No image loaded</span>
+            </summary>
+            <div class="section-body editor-panel">
+              <div class="editor-stage">
+                <canvas id="editorCanvas" width="1200" height="820"></canvas>
+              </div>
+            </div>
+          </details>
+
+          <details class="dock-section" open>
+            <summary>
+              <span>Selection</span>
+              <span class="muted">Current frame crop</span>
+            </summary>
+            <div class="section-body compact-panel">
+              <div class="selection-meta compact-meta">
+                <div>Selected: <span id="selectedLabel">None</span></div>
+                <div id="boxStats">x: -, y: -, w: -, h: -</div>
+              </div>
+              <div class="compact-grid selection-fields">
+                <label>
+                  X
+                  <input id="boxXInput" type="number" min="0" step="1" />
+                </label>
+                <label>
+                  Y
+                  <input id="boxYInput" type="number" min="0" step="1" />
+                </label>
+                <label>
+                  Width
+                  <input id="boxWidthInput" type="number" min="1" step="1" />
+                </label>
+                <label>
+                  Height
+                  <input id="boxHeightInput" type="number" min="1" step="1" />
+                </label>
+                <label>
+                  Frame Hold
+                  <input id="boxHoldInput" type="number" min="1" step="1" value="1" />
+                </label>
+              </div>
+              <div class="button-row dense-row">
+                <button id="deleteSelectedBtn" type="button">Delete</button>
+                <button id="duplicateSelectedBtn" type="button">Duplicate</button>
+                <button id="copyToAllBtn" type="button">Copy Size</button>
+                <button id="copyHoldToAllBtn" type="button">Copy Hold</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="dock-section" open>
+            <summary>
+              <span>Normalize</span>
+              <span class="muted">Scale while feet stay planted</span>
+            </summary>
+            <div class="section-body compact-panel">
+              <div class="compact-grid">
+                <label>
+                  Side Padding
+                  <input id="normalizeSidePaddingInput" type="number" min="0" step="1" value="0" />
+                </label>
+                <label>
+                  Top Padding
+                  <input id="normalizeTopPaddingInput" type="number" min="0" step="1" value="0" />
+                </label>
+                <label>
+                  Bottom Padding
+                  <input id="normalizeBottomPaddingInput" type="number" min="0" step="1" value="0" />
+                </label>
+              </div>
+            </div>
+          </details>
+
+          <details class="dock-section">
+            <summary>
+              <span>Detect</span>
+              <span class="muted">Auto-splitting controls</span>
+            </summary>
+            <div class="section-body compact-panel">
+              <div class="compact-grid">
+                <label>
+                  Tolerance
+                  <input id="toleranceInput" type="range" min="0" max="120" step="1" value="26" />
+                  <span id="toleranceValue">26</span>
+                </label>
+                <label>
+                  Min Area
+                  <input id="minAreaInput" type="number" min="1" step="10" value="400" />
+                </label>
+                <label>
+                  Padding
+                  <input id="paddingInput" type="number" min="0" step="1" value="4" />
+                </label>
+                <label>
+                  Merge Gap
+                  <input id="mergeGapInput" type="number" min="0" step="1" value="10" />
+                </label>
+              </div>
+              <div class="button-row dense-row">
+                <button id="autoDetectBtn" type="button">Auto Detect</button>
+                <button id="clearBoxesBtn" type="button">Clear</button>
+                <button id="sortBoxesBtn" type="button">Sort</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="dock-section">
+            <summary>
+              <span>Export</span>
+              <span class="muted">Sheet settings</span>
+            </summary>
+            <div class="section-body compact-panel">
+              <div class="compact-grid">
+                <label>
+                  Cell Width
+                  <input id="cellWidthInput" type="number" min="1" step="1" value="256" />
+                </label>
+                <label>
+                  Cell Height
+                  <input id="cellHeightInput" type="number" min="1" step="1" value="256" />
+                </label>
+                <label>
+                  Frames / Row
+                  <input id="framesPerRowInput" type="number" min="1" step="1" value="4" />
+                </label>
+                <label>
+                  FPS
+                  <input id="fpsInput" type="number" min="1" step="1" value="12" />
+                </label>
+              </div>
+              <div class="button-row dense-row">
+                <button id="downloadSheetBtn" type="button">Sheet</button>
+                <button id="downloadJsonBtn" type="button">JSON</button>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <aside class="preview-column">
+          <section class="panel preview-panel">
+            <div class="panel-header">
+              <h2>Preview</h2>
+              <div id="frameCounter" class="muted">0 / 0</div>
+            </div>
+            <div class="preview-stage">
+              <canvas id="previewCanvas" width="256" height="256"></canvas>
+            </div>
+            <div class="preview-controls transport-row">
+              <button id="prevFrameBtn" type="button">Prev</button>
+              <button id="playPauseBtn" type="button">Pause</button>
+              <button id="nextFrameBtn" type="button">Next</button>
+            </div>
+            <div class="compact-grid preview-grid">
+              <label>
+                Preview FPS
+                <input id="previewFpsInput" type="number" min="1" step="1" value="12" />
+              </label>
+              <label>
+                Frame Hold
+                <input id="previewFrameHoldInput" type="number" min="1" step="1" value="1" />
+              </label>
+              <label>
+                Loop Pause (ms)
+                <input id="previewPauseInput" type="number" min="0" step="50" value="300" />
+              </label>
+              <label>
+                Zoom
+                <input id="previewZoomInput" type="range" min="1" max="6" step="1" value="2" />
+              </label>
+              <label>
+                Preview BG
+                <input id="previewBgInput" type="text" value="#ffffff" spellcheck="false" />
+              </label>
+              <label class="opacity-field">
+                BG Opacity
+                <input id="previewOpacityInput" type="range" min="0" max="100" step="1" value="0" />
+                <span id="previewOpacityValue">0%</span>
+              </label>
+              <label>
+                Grid Step
+                <input id="previewGridStepInput" type="number" min="8" step="8" value="32" />
+              </label>
+              <label class="toggle-field">
+                <span>Sub-loop</span>
+                <input id="previewSubLoopEnabledInput" type="checkbox" />
+              </label>
+              <label>
+                Loop Start
+                <input id="previewSubLoopStartInput" type="number" min="1" step="1" value="1" />
+              </label>
+              <label>
+                Loop End
+                <input id="previewSubLoopEndInput" type="number" min="1" step="1" value="2" />
+              </label>
+              <label>
+                Repeats
+                <input id="previewSubLoopRepeatsInput" type="number" min="0" step="1" value="2" />
+              </label>
+              <label class="toggle-field">
+                <span>Show Grid</span>
+                <input id="previewShowGridInput" type="checkbox" checked />
+              </label>
+              <label class="toggle-field">
+                <span>Show Rulers</span>
+                <input id="previewShowRulersInput" type="checkbox" checked />
+              </label>
+              <label class="toggle-field">
+                <span>Show Fit Box</span>
+                <input id="previewShowFitBoxInput" type="checkbox" checked />
+              </label>
+            </div>
+            <div class="sheet-preview">
+              <canvas id="sheetCanvas" width="512" height="512"></canvas>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
