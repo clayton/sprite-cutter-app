@@ -2,6 +2,11 @@
   "name": "sprite-cutter-app",
   "private": true,
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && cp index.html style.css app.js sample-wizard-sheet.png dist/"
+    "build": "node scripts/build.mjs",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=sprite-cutter-app --branch=master",
+    "deploy:dry-run": "npm run build"
+  },
+  "devDependencies": {
+    "wrangler": "^4.86.0"
   }
 }

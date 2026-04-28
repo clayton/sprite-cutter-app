@@ -21,6 +21,23 @@ Then open:
 
 `http://127.0.0.1:8126`
 
+## Build and deploy
+
+Build the static bundle:
+
+```bash
+npm run build
+```
+
+This writes the deployable site to `dist/`.
+
+If you want to deploy from the CLI instead of the Cloudflare UI:
+
+```bash
+npm install
+npm run deploy
+```
+
 ## Included sample
 
 The `Load Sample` button uses the bundled file:

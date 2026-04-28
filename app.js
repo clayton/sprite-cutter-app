@@ -75,6 +75,7 @@ const selectedLabel = document.getElementById("selectedLabel");
 const boxStats = document.getElementById("boxStats");
 const imageMeta = document.getElementById("imageMeta");
 const frameCounter = document.getElementById("frameCounter");
+const buildInfo = document.getElementById("buildInfo");
 const boxXInput = document.getElementById("boxXInput");
 const boxYInput = document.getElementById("boxYInput");
 const boxWidthInput = document.getElementById("boxWidthInput");
@@ -161,6 +162,14 @@ function setNumericInput(input, value, fallback = input.value) {
 
 function setCheckboxInput(input, value) {
   input.checked = Boolean(value);
+}
+
+function formatBuildInfo() {
+  const info = window.BUILD_INFO || {};
+  const version = info.version || "dev";
+  const commit = info.commit || "local";
+  const builtAt = info.builtAt ? new Date(info.builtAt).toLocaleString() : "unbuilt";
+  return `Version ${version} | ${commit} | ${builtAt}`;
 }
 
 function buildGridBoxes(boxes, cellWidth, cellHeight, framesPerRow, imageWidth, imageHeight) {
@@ -1258,6 +1267,9 @@ window.addEventListener("keydown", (event) => {
 });
 
 updateInspector();
+if (buildInfo) {
+  buildInfo.textContent = formatBuildInfo();
+}
 drawEditor();
 drawPreview();
 requestAnimationFrame(animatePreview);
