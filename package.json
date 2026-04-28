@@ -1,0 +1,7 @@
+{
+  "name": "sprite-cutter-app",
+  "private": true,
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && cp index.html style.css app.js sample-wizard-sheet.png dist/"
+  }
+}
