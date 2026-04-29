@@ -1,15 +1,32 @@
 :root {
-  --bg: #07111d;
-  --panel: rgba(14, 23, 37, 0.94);
-  --panel-2: #1a2538;
-  --panel-3: #0d1625;
-  --line: rgba(109, 145, 194, 0.22);
-  --line-strong: rgba(109, 145, 194, 0.38);
-  --ink: #eef5ff;
-  --muted: #9baecc;
-  --accent: #61c8ff;
-  --accent-2: #7ce4b1;
-  --shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+  color-scheme: light dark;
+  --bg: #edf2f7;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel-2: #f6f8fb;
+  --panel-3: #e8eef5;
+  --line: rgba(55, 83, 122, 0.18);
+  --line-strong: rgba(55, 83, 122, 0.32);
+  --ink: #0c1727;
+  --muted: #586a84;
+  --accent: #0d74d1;
+  --accent-2: #1f9d68;
+  --shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #07111d;
+    --panel: rgba(14, 23, 37, 0.94);
+    --panel-2: #1a2538;
+    --panel-3: #0d1625;
+    --line: rgba(109, 145, 194, 0.22);
+    --line-strong: rgba(109, 145, 194, 0.38);
+    --ink: #eef5ff;
+    --muted: #9baecc;
+    --accent: #61c8ff;
+    --accent-2: #7ce4b1;
+    --shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+  }
 }
 
 * {
@@ -20,15 +37,19 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family:
-    "Avenir Next",
-    "SF Pro Display",
-    "Segoe UI",
-    sans-serif;
+    "Fira Code",
+    "SFMono-Regular",
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    monospace;
   color: var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(97, 200, 255, 0.12), transparent 20%),
-    radial-gradient(circle at bottom right, rgba(124, 228, 177, 0.08), transparent 16%),
-    linear-gradient(180deg, #08111d 0%, #060d18 100%);
+    linear-gradient(rgba(55, 83, 122, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(55, 83, 122, 0.04) 1px, transparent 1px),
+    var(--bg);
+  background-size: 24px 24px, 24px 24px, auto;
 }
 
 .app-shell {
@@ -56,14 +77,7 @@ body {
 }
 
 #buildInfo {
-  font-family:
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    "Liberation Mono",
-    monospace;
+  font-family: inherit;
 }
 
 .topbar,
@@ -81,7 +95,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  border-radius: 18px;
+  border-radius: 0;
 }
 
 .title-block {
@@ -146,10 +160,9 @@ button,
   justify-content: center;
   min-height: 40px;
   padding: 9px 12px;
-  border-radius: 13px;
-  border: 1px solid rgba(97, 200, 255, 0.24);
-  background:
-    linear-gradient(180deg, rgba(34, 53, 83, 0.98) 0%, rgba(21, 34, 55, 0.98) 100%);
+  border-radius: 0;
+  border: 1px solid var(--line-strong);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(233, 239, 247, 0.96) 100%);
   color: var(--ink);
   font: inherit;
   cursor: pointer;
@@ -163,6 +176,15 @@ button:hover,
 .file-pill:hover span {
   border-color: var(--accent);
   transform: translateY(-1px);
+}
+
+@media (prefers-color-scheme: dark) {
+  button,
+  .file-pill span {
+    border: 1px solid rgba(97, 200, 255, 0.24);
+    background:
+      linear-gradient(180deg, rgba(34, 53, 83, 0.98) 0%, rgba(21, 34, 55, 0.98) 100%);
+  }
 }
 
 label {
@@ -185,7 +207,7 @@ input[type="checkbox"] {
 input[type="text"],
 input[type="number"] {
   padding: 9px 12px;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid var(--line);
   background: var(--panel-2);
   color: var(--ink);
@@ -253,7 +275,7 @@ input[type="number"] {
 
 .section-body,
 .panel {
-  border-radius: 18px;
+  border-radius: 0;
 }
 
 .section-body {
@@ -279,7 +301,7 @@ input[type="number"] {
 .preview-stage,
 .sheet-preview {
   margin-top: 10px;
-  border-radius: 16px;
+  border-radius: 0;
   border: 1px solid var(--line);
   overflow: hidden;
   background:
@@ -389,7 +411,7 @@ input[type="number"] {
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 0;
   background: var(--panel-2);
 }
 
@@ -416,12 +438,6 @@ input[type="number"] {
   .app-shell {
     width: calc(100vw - 8px);
     margin: 4px auto;
-  }
-
-  .topbar,
-  .section-body,
-  .panel {
-    border-radius: 16px;
   }
 
   .compact-grid {
