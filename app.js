@@ -217,6 +217,13 @@ function setCheckboxInput(input, value) {
   input.checked = Boolean(value);
 }
 
+function isTypingTarget(target) {
+  if (!target) return false;
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return true;
+  if (target.isContentEditable) return true;
+  return Boolean(target.closest?.(".cm-editor, .json-editor"));
+}
+
 function syncExportFpsToPreview() {
   setNumericInput(fpsInput, previewFpsInput.value, 12);
 }
@@ -1515,7 +1522,7 @@ window.addEventListener("mousemove", continueDrag);
 window.addEventListener("mouseup", endDrag);
 
 window.addEventListener("keydown", (event) => {
-  if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target?.tagName)) return;
+  if (isTypingTarget(event.target)) return;
   if (state.selectedIndex < 0) return;
   const box = state.boxes[state.selectedIndex];
   const step = event.shiftKey ? 10 : 1;

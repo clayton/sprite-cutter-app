@@ -78,7 +78,7 @@ body {
 }
 
 .app-shell {
-  width: min(1600px, calc(100vw - 14px));
+  width: calc(100vw - 14px);
   margin: 7px auto;
 }
 
