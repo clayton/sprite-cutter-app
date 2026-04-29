@@ -17,6 +17,9 @@
           <p class="lede">Slice, normalize, preview, export.</p>
         </div>
         <div class="header-actions">
+          <button id="themeCycleBtn" class="theme-cycle-btn" type="button" aria-label="Theme: system" title="Theme: system">
+            <span id="themeCycleIcon" class="theme-cycle-icon" aria-hidden="true"></span>
+          </button>
           <label class="file-pill">
             <input id="fileInput" type="file" accept="image/png,image/webp,image/jpeg" />
             <span>Upload</span>
@@ -87,7 +90,7 @@
           <details class="dock-section" open>
             <summary>
               <span>Normalize</span>
-              <span class="muted">Scale while feet stay planted</span>
+              <span class="muted">Scale from bottom</span>
             </summary>
             <div class="section-body compact-panel">
               <div class="compact-grid">
@@ -173,7 +176,7 @@
         </section>
 
         <aside class="preview-column">
-          <section class="panel preview-panel">
+          <section class="preview-surface">
             <div class="panel-header">
               <h2>Preview</h2>
               <div id="frameCounter" class="muted">0 / 0</div>
@@ -181,6 +184,8 @@
             <div class="preview-stage">
               <canvas id="previewCanvas" width="256" height="256"></canvas>
             </div>
+          </section>
+          <section class="panel preview-tools">
             <div class="preview-controls transport-row">
               <button id="prevFrameBtn" type="button">Prev</button>
               <button id="playPauseBtn" type="button">Pause</button>

@@ -32,6 +32,8 @@ const sheetCtx = sheetCanvas.getContext("2d");
 const fileInput = document.getElementById("fileInput");
 const projectFileInput = document.getElementById("projectFileInput");
 const loadSampleBtn = document.getElementById("loadSampleBtn");
+const themeCycleBtn = document.getElementById("themeCycleBtn");
+const themeCycleIcon = document.getElementById("themeCycleIcon");
 const autoDetectBtn = document.getElementById("autoDetectBtn");
 const clearBoxesBtn = document.getElementById("clearBoxesBtn");
 const sortBoxesBtn = document.getElementById("sortBoxesBtn");
@@ -84,27 +86,74 @@ const boxHoldInput = document.getElementById("boxHoldInput");
 
 const HANDLE_SIZE = 12;
 const HANDLE_HIT_SIZE = 16;
+const THEME_STORAGE_KEY = "spriteslice-theme";
+const THEME_ORDER = ["system", "light", "dark"];
+const DARK_MEDIA_QUERY = window.matchMedia("(prefers-color-scheme: dark)");
+const THEME_ICONS = {
+  light: `
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+    </svg>
+  `,
+  dark: `
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+    </svg>
+  `,
+};
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function getStoredThemeMode() {
+  const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+  return THEME_ORDER.includes(value) ? value : "system";
+}
+
+function applyThemeMode(mode) {
+  if (mode === "system") {
+    document.documentElement.removeAttribute("data-theme");
+    window.localStorage.removeItem(THEME_STORAGE_KEY);
+  } else {
+    document.documentElement.setAttribute("data-theme", mode);
+    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
+  }
+  renderThemeCycle(mode);
+  drawEditor();
+  drawPreview();
+}
+
+function renderThemeCycle(mode) {
+  if (!themeCycleBtn || !themeCycleIcon) return;
+  const effectiveMode = mode === "system" ? (DARK_MEDIA_QUERY.matches ? "dark" : "light") : mode;
+  themeCycleIcon.innerHTML = THEME_ICONS[effectiveMode];
+  themeCycleBtn.setAttribute("aria-label", `Theme: ${mode}`);
+  themeCycleBtn.setAttribute("title", `Theme: ${mode}`);
+}
+
+function cycleThemeMode() {
+  const current = getStoredThemeMode();
+  const nextIndex = (THEME_ORDER.indexOf(current) + 1) % THEME_ORDER.length;
+  applyThemeMode(THEME_ORDER[nextIndex]);
 }
 
 function getBoxHold(box) {
   return Math.max(1, Number(box?.hold ?? 1));
 }
 
-function roundedRect(ctx, x, y, width, height, radius) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
+function getThemeSurfaceColors() {
+  const styles = window.getComputedStyle(document.documentElement);
+  const panel3 = styles.getPropertyValue("--panel-3").trim() || "#e7e7df";
+  const isDark =
+    document.documentElement.getAttribute("data-theme") === "dark" ||
+    (!document.documentElement.hasAttribute("data-theme") && DARK_MEDIA_QUERY.matches);
+  return {
+    panel3,
+    checkerA: isDark ? "#1a2432" : "#eef2f6",
+    checkerB: isDark ? "#101824" : "#dde5ee",
+    placeholder: isDark ? "#8ea2bc" : "#556579",
+  };
 }
 
 function distanceSq(a, b) {
@@ -300,15 +349,16 @@ function updateInspector() {
 
 function drawEditor() {
   editorCtx.clearRect(0, 0, editorCanvas.width, editorCanvas.height);
+  const theme = getThemeSurfaceColors();
 
-  roundedRect(editorCtx, 0, 0, editorCanvas.width, editorCanvas.height, 18);
-  editorCtx.fillStyle = "#0a0f19";
-  editorCtx.fill();
+  editorCtx.fillStyle = theme.panel3;
+  editorCtx.fillRect(0, 0, editorCanvas.width, editorCanvas.height);
 
   if (!state.image) {
-    editorCtx.fillStyle = "#9eb0d0";
-    editorCtx.font = "28px sans-serif";
+    editorCtx.fillStyle = theme.placeholder;
+    editorCtx.font = '600 24px "Fira Code", monospace';
     editorCtx.textAlign = "center";
+    editorCtx.textBaseline = "middle";
     editorCtx.fillText("Upload a sprite sheet to start", editorCanvas.width / 2, editorCanvas.height / 2);
     return;
   }
@@ -363,9 +413,10 @@ function getHandles(canvasBox) {
 }
 
 function drawCheckerboard(ctx, width, height, size) {
+  const theme = getThemeSurfaceColors();
   for (let y = 0; y < height; y += size) {
     for (let x = 0; x < width; x += size) {
-      ctx.fillStyle = (Math.floor(x / size) + Math.floor(y / size)) % 2 === 0 ? "#252c38" : "#1a202b";
+      ctx.fillStyle = (Math.floor(x / size) + Math.floor(y / size)) % 2 === 0 ? theme.checkerA : theme.checkerB;
       ctx.fillRect(x, y, size, size);
     }
   }
@@ -1202,6 +1253,18 @@ loadSampleBtn.addEventListener("click", async () => {
   setImage(image, name);
 });
 
+if (themeCycleBtn) {
+  themeCycleBtn.addEventListener("click", cycleThemeMode);
+}
+
+DARK_MEDIA_QUERY.addEventListener("change", () => {
+  if (getStoredThemeMode() === "system") {
+    renderThemeCycle("system");
+    drawEditor();
+    drawPreview();
+  }
+});
+
 autoDetectBtn.addEventListener("click", autoDetectFrames);
 clearBoxesBtn.addEventListener("click", () => {
   state.boxes = [];
@@ -1283,6 +1346,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 updateInspector();
+applyThemeMode(getStoredThemeMode());
 if (buildInfo) {
   buildInfo.textContent = formatBuildInfo();
 }
