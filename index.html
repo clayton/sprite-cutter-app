@@ -40,8 +40,22 @@
               <span id="imageMeta" class="muted">No image loaded</span>
             </summary>
             <div class="section-body editor-panel">
-              <div class="editor-stage">
-                <canvas id="editorCanvas" width="1200" height="820"></canvas>
+              <div class="tab-row editor-tab-row" role="tablist" aria-label="Editor mode">
+                <button id="editorImageTabBtn" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="editorImagePanel">Image</button>
+                <button id="editorJsonTabBtn" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="editorJsonPanel">JSON</button>
+              </div>
+              <div id="editorImagePanel" class="tab-panel" role="tabpanel" aria-labelledby="editorImageTabBtn">
+                <div class="editor-stage">
+                  <canvas id="editorCanvas" width="1200" height="820"></canvas>
+                </div>
+              </div>
+              <div id="editorJsonPanel" class="tab-panel hidden editor-json-panel" role="tabpanel" aria-labelledby="editorJsonTabBtn">
+                <div class="json-editor-header">
+                  <span id="loopJsonStatus" class="muted">Using frame order</span>
+                  <button id="formatLoopJsonBtn" type="button">Format</button>
+                  <button id="resetLoopJsonBtn" type="button">Reset</button>
+                </div>
+                <div id="loopJsonEditor" class="json-editor" aria-label="Loop JSON"></div>
               </div>
             </div>
           </details>
@@ -218,22 +232,6 @@
                 <input id="previewGridStepInput" type="number" min="8" step="8" value="32" />
               </label>
               <label class="toggle-field">
-                <span>Sub-loop</span>
-                <input id="previewSubLoopEnabledInput" type="checkbox" />
-              </label>
-              <label>
-                Loop Start
-                <input id="previewSubLoopStartInput" type="number" min="1" step="1" value="1" />
-              </label>
-              <label>
-                Loop End
-                <input id="previewSubLoopEndInput" type="number" min="1" step="1" value="2" />
-              </label>
-              <label>
-                Repeats
-                <input id="previewSubLoopRepeatsInput" type="number" min="0" step="1" value="2" />
-              </label>
-              <label class="toggle-field">
                 <span>Show Grid</span>
                 <input id="previewShowGridInput" type="checkbox" checked />
               </label>
@@ -260,6 +258,7 @@
     </div>
 
     <script src="./build-meta.js"></script>
+    <script src="./json-editor.bundle.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

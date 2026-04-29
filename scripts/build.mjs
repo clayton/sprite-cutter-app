@@ -12,7 +12,11 @@ function gitValue(command, fallback) {
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
 
-for (const file of ["index.html", "style.css", "app.js", "sample-wizard-sheet.png"]) {
+execSync("npx esbuild src/json-editor.js --bundle --format=iife --outfile=json-editor.bundle.js", {
+  stdio: "inherit",
+});
+
+for (const file of ["index.html", "style.css", "app.js", "json-editor.bundle.js", "sample-wizard-sheet.png"]) {
   if (existsSync(file)) {
     cpSync(file, `dist/${file}`);
   }

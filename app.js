@@ -8,6 +8,7 @@ const state = {
   dragHandle: null,
   dragStart: null,
   dragOriginalBox: null,
+  dragWasDefaultLoop: false,
   scale: 1,
   offsetX: 0,
   offsetY: 0,
@@ -17,7 +18,9 @@ const state = {
   previewAccum: 0,
   previewPauseRemaining: 0,
   previewHoldTick: 0,
-  previewSubLoopRemaining: null,
+  previewSequenceStep: 0,
+  previewSequence: [],
+  loopJsonUpdating: false,
 };
 
 const samplePath = "./sample-wizard-sheet.png";
@@ -66,13 +69,17 @@ const previewBgInput = document.getElementById("previewBgInput");
 const previewOpacityInput = document.getElementById("previewOpacityInput");
 const previewOpacityValue = document.getElementById("previewOpacityValue");
 const previewGridStepInput = document.getElementById("previewGridStepInput");
-const previewSubLoopEnabledInput = document.getElementById("previewSubLoopEnabledInput");
-const previewSubLoopStartInput = document.getElementById("previewSubLoopStartInput");
-const previewSubLoopEndInput = document.getElementById("previewSubLoopEndInput");
-const previewSubLoopRepeatsInput = document.getElementById("previewSubLoopRepeatsInput");
 const previewShowGridInput = document.getElementById("previewShowGridInput");
 const previewShowRulersInput = document.getElementById("previewShowRulersInput");
 const previewShowFitBoxInput = document.getElementById("previewShowFitBoxInput");
+const editorImageTabBtn = document.getElementById("editorImageTabBtn");
+const editorJsonTabBtn = document.getElementById("editorJsonTabBtn");
+const editorImagePanel = document.getElementById("editorImagePanel");
+const editorJsonPanel = document.getElementById("editorJsonPanel");
+const loopJsonEditorHost = document.getElementById("loopJsonEditor");
+const loopJsonStatus = document.getElementById("loopJsonStatus");
+const resetLoopJsonBtn = document.getElementById("resetLoopJsonBtn");
+const formatLoopJsonBtn = document.getElementById("formatLoopJsonBtn");
 const selectedLabel = document.getElementById("selectedLabel");
 const boxStats = document.getElementById("boxStats");
 const imageMeta = document.getElementById("imageMeta");
@@ -101,6 +108,7 @@ const THEME_ICONS = {
     </svg>
   `,
 };
+let loopJsonEditor = null;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -182,10 +190,6 @@ function readInputs() {
     previewBg: previewBgInput.value.trim(),
     previewOpacity: Number(previewOpacityInput.value),
     previewGridStep: Number(previewGridStepInput.value),
-    previewSubLoopEnabled: previewSubLoopEnabledInput.checked,
-    previewSubLoopStart: Number(previewSubLoopStartInput.value),
-    previewSubLoopEnd: Number(previewSubLoopEndInput.value),
-    previewSubLoopRepeats: Number(previewSubLoopRepeatsInput.value),
     previewShowGrid: previewShowGridInput.checked,
     previewShowRulers: previewShowRulersInput.checked,
     previewShowFitBox: previewShowFitBoxInput.checked,
@@ -193,12 +197,12 @@ function readInputs() {
 }
 
 function resetPreviewPlaybackState() {
-  state.previewFrame = 0;
+  state.previewSequenceStep = 0;
+  state.previewFrame = getPreviewEntry(0)?.frameIndex ?? 0;
   state.previewAccum = 0;
   state.previewPauseRemaining = 0;
   state.previewHoldTick = 0;
   state.previewLastTime = 0;
-  state.previewSubLoopRemaining = null;
 }
 
 function setNumericInput(input, value, fallback = input.value) {
@@ -211,6 +215,190 @@ function setNumericInput(input, value, fallback = input.value) {
 
 function setCheckboxInput(input, value) {
   input.checked = Boolean(value);
+}
+
+function syncExportFpsToPreview() {
+  setNumericInput(fpsInput, previewFpsInput.value, 12);
+}
+
+function buildDefaultLoopConfig() {
+  return {
+    frames: state.boxes.map((_, index) => index + 1),
+  };
+}
+
+function normalizeLoopEntry(entry) {
+  const frameNumber = typeof entry === "number" ? entry : Number(entry?.frame);
+  const hold = typeof entry === "object" && entry !== null && entry.hold !== undefined ? Number(entry.hold) : 1;
+  if (!Number.isInteger(frameNumber)) {
+    throw new Error("Each loop entry needs a frame number.");
+  }
+  if (frameNumber < 1 || frameNumber > state.boxes.length) {
+    throw new Error(`Frame ${frameNumber} is outside 1-${Math.max(1, state.boxes.length)}.`);
+  }
+  if (!Number.isFinite(hold) || hold < 1) {
+    throw new Error(`Frame ${frameNumber} has an invalid hold.`);
+  }
+  return {
+    frame: frameNumber,
+    frameIndex: frameNumber - 1,
+    hold: Math.max(1, Math.round(hold)),
+  };
+}
+
+function parseLoopConfig(text) {
+  const config = JSON.parse(text);
+  const frames = Array.isArray(config) ? config : config?.frames;
+  if (!Array.isArray(frames)) {
+    throw new Error('Loop JSON must be an array or an object with a "frames" array.');
+  }
+  if (!frames.length && state.boxes.length > 0) {
+    throw new Error("Loop JSON needs at least one frame.");
+  }
+  return {
+    frames: frames.map(normalizeLoopEntry),
+  };
+}
+
+function serializeLoopSequence() {
+  return state.previewSequence.map((entry) => (entry.hold > 1 ? { frame: entry.frame, hold: entry.hold } : entry.frame));
+}
+
+function getPreviewEntries() {
+  if (state.previewSequence.length) return state.previewSequence;
+  return state.boxes.map((_, index) => ({ frame: index + 1, frameIndex: index, hold: 1 }));
+}
+
+function getPreviewEntry(step = state.previewSequenceStep) {
+  const entries = getPreviewEntries();
+  if (!entries.length) return null;
+  return entries[((step % entries.length) + entries.length) % entries.length];
+}
+
+function setPreviewSequenceStep(step) {
+  const entries = getPreviewEntries();
+  if (!entries.length) {
+    state.previewSequenceStep = 0;
+    state.previewFrame = 0;
+    return;
+  }
+  state.previewSequenceStep = ((step % entries.length) + entries.length) % entries.length;
+  state.previewFrame = entries[state.previewSequenceStep].frameIndex;
+}
+
+function setLoopJsonStatus(message, isError = false) {
+  loopJsonStatus.textContent = message;
+  loopJsonStatus.classList.toggle("json-status-error", isError);
+  loopJsonStatus.classList.toggle("muted", !isError);
+}
+
+function getLoopJsonValue() {
+  return loopJsonEditor?.getValue() || "";
+}
+
+function setLoopJsonValue(value) {
+  if (!loopJsonEditor) return;
+  state.loopJsonUpdating = true;
+  loopJsonEditor.setValue(value);
+  state.loopJsonUpdating = false;
+}
+
+function initializeLoopJsonEditor() {
+  loopJsonEditor = window.SpriteSliceJsonEditor.createJsonEditor({
+    parent: loopJsonEditorHost,
+    value: "",
+    onChange: () => {
+      if (!state.loopJsonUpdating) applyLoopJson();
+    },
+  });
+}
+
+function formatLoopJson() {
+  const value = getLoopJsonValue();
+  if (!value.trim()) return false;
+  try {
+    const parsed = JSON.parse(value);
+    setLoopJsonValue(JSON.stringify(parsed, null, 2));
+    applyLoopJson();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function applyLoopJson() {
+  const value = getLoopJsonValue();
+  if (!value.trim()) {
+    state.previewSequence = [];
+    setLoopJsonStatus("Using frame order");
+    resetPreviewPlaybackState();
+    drawPreview();
+    return;
+  }
+
+  try {
+    const parsed = parseLoopConfig(value);
+    state.previewSequence = parsed.frames;
+    setLoopJsonStatus(parsed.frames.length ? `Valid loop: ${parsed.frames.length} steps` : "No frames");
+    resetPreviewPlaybackState();
+    drawPreview();
+  } catch (error) {
+    setLoopJsonStatus(error.message, true);
+  }
+}
+
+function writeLoopJson(config) {
+  setLoopJsonValue(JSON.stringify(config, null, 2));
+  applyLoopJson();
+}
+
+function resetLoopJsonToFrames() {
+  writeLoopJson(buildDefaultLoopConfig());
+}
+
+function isLoopJsonDefaultForCount(count) {
+  try {
+    const frames = parseLoopConfig(getLoopJsonValue()).frames;
+    return (
+      frames.length === count &&
+      frames.every((entry, index) => entry.frame === index + 1 && entry.hold === 1)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function refreshLoopJsonAfterFrameListChange(wasDefaultLoop) {
+  if (wasDefaultLoop) {
+    resetLoopJsonToFrames();
+  } else {
+    applyLoopJson();
+    resetPreviewPlaybackState();
+  }
+}
+
+function buildSequenceFromLegacySubLoop(subLoop) {
+  if (!subLoop?.enabled || !state.boxes.length) return null;
+  const start = clamp(Math.round(Number(subLoop.startFrame || 1)), 1, state.boxes.length);
+  const end = clamp(Math.round(Number(subLoop.endFrame || start)), start, state.boxes.length);
+  const repeats = Math.max(0, Math.round(Number(subLoop.repeats || 0)));
+  const frames = [];
+  for (let frame = 1; frame <= end; frame += 1) frames.push(frame);
+  for (let repeat = 0; repeat < repeats; repeat += 1) {
+    for (let frame = start; frame <= end; frame += 1) frames.push(frame);
+  }
+  for (let frame = end + 1; frame <= state.boxes.length; frame += 1) frames.push(frame);
+  return { frames };
+}
+
+function setEditorMode(mode) {
+  const jsonMode = mode === "json";
+  editorImageTabBtn.classList.toggle("active", !jsonMode);
+  editorJsonTabBtn.classList.toggle("active", jsonMode);
+  editorImageTabBtn.setAttribute("aria-selected", String(!jsonMode));
+  editorJsonTabBtn.setAttribute("aria-selected", String(jsonMode));
+  editorImagePanel.classList.toggle("hidden", jsonMode);
+  editorJsonPanel.classList.toggle("hidden", !jsonMode);
 }
 
 function formatBuildInfo() {
@@ -341,9 +529,15 @@ function updateInspector() {
     boxHoldInput.value = getBoxHold(box);
   }
 
-  frameCounter.textContent = state.boxes.length
-    ? `${(state.previewFrame % state.boxes.length) + 1} / ${state.boxes.length}`
-    : "0 / 0";
+  const entries = getPreviewEntries();
+  if (state.boxes.length && entries.length) {
+    const frameLabel = `${(state.previewFrame % state.boxes.length) + 1} / ${state.boxes.length}`;
+    frameCounter.textContent = entries.length === state.boxes.length
+      ? frameLabel
+      : `${frameLabel} · step ${state.previewSequenceStep + 1} / ${entries.length}`;
+  } else {
+    frameCounter.textContent = "0 / 0";
+  }
   playPauseBtn.textContent = state.previewPlaying ? "Pause" : "Play";
 }
 
@@ -461,8 +655,9 @@ function drawPreviewGuides(ctx, frameRect, placement, options) {
 
   if (options.previewShowRulers) {
     ctx.save();
-    ctx.strokeStyle = "rgba(239, 245, 255, 0.9)";
-    ctx.fillStyle = "rgba(239, 245, 255, 0.95)";
+    const rulerColor = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim() || "#111111";
+    ctx.strokeStyle = rulerColor;
+    ctx.fillStyle = rulerColor;
     ctx.lineWidth = 1;
     ctx.font = "10px sans-serif";
     ctx.textAlign = "left";
@@ -687,7 +882,6 @@ function applyProjectData(project) {
   const exportSettings = project?.export || {};
   const playback = project?.playback || {};
   const preview = project?.preview || {};
-  const subLoop = playback.subLoop || {};
 
   setNumericInput(cellWidthInput, exportSettings.cellWidth, 256);
   setNumericInput(cellHeightInput, exportSettings.cellHeight, 256);
@@ -698,12 +892,9 @@ function applyProjectData(project) {
   setNumericInput(normalizeBottomPaddingInput, exportSettings.normalizeBottomPadding, 0);
 
   setNumericInput(previewFpsInput, playback.previewFps ?? exportSettings.fps, 12);
+  syncExportFpsToPreview();
   setNumericInput(previewFrameHoldInput, playback.globalFrameHold, 1);
   setNumericInput(previewPauseInput, playback.loopPauseMs, 300);
-  setCheckboxInput(previewSubLoopEnabledInput, subLoop.enabled);
-  setNumericInput(previewSubLoopStartInput, subLoop.startFrame, 1);
-  setNumericInput(previewSubLoopEndInput, subLoop.endFrame, 2);
-  setNumericInput(previewSubLoopRepeatsInput, subLoop.repeats, 2);
 
   previewBgInput.value = preview.backgroundColor || "#ffffff";
   setNumericInput(previewOpacityInput, preview.backgroundOpacity, 0);
@@ -722,7 +913,8 @@ function applyProjectData(project) {
         state.image.height
       )
     : boxes;
-  state.selectedIndex = boxes.length ? 0 : -1;
+  state.selectedIndex = state.boxes.length ? 0 : -1;
+  writeLoopJson(playback.sequence || buildSequenceFromLegacySubLoop(playback.subLoop) || buildDefaultLoopConfig());
   resetPreviewPlaybackState();
   updateInspector();
   drawEditor();
@@ -849,7 +1041,8 @@ function autoDetectFrames() {
   state.boxes = mergeNearbyBoxes(boxes, mergeGap);
   sortBoxesReadingOrder();
   state.selectedIndex = state.boxes.length ? 0 : -1;
-  state.previewFrame = 0;
+  resetLoopJsonToFrames();
+  resetPreviewPlaybackState();
   drawEditor();
   drawPreview();
 }
@@ -958,6 +1151,7 @@ function startDrag(event) {
   state.dragMode = "create";
   state.dragStart = point;
   state.dragOriginalBox = null;
+  state.dragWasDefaultLoop = isLoopJsonDefaultForCount(state.boxes.length);
   state.boxes.push({ x: point.x, y: point.y, width: 1, height: 1, hold: 1 });
   drawEditor();
   drawPreview();
@@ -1014,17 +1208,24 @@ function resizeBox(box, point) {
 }
 
 function endDrag() {
+  let frameListChanged = false;
   if (state.dragMode === "create") {
     const box = state.boxes[state.selectedIndex];
+    frameListChanged = true;
     if (box && (box.width < 4 || box.height < 4)) {
       state.boxes.splice(state.selectedIndex, 1);
       state.selectedIndex = -1;
     }
   }
+  const wasDefaultLoop = state.dragWasDefaultLoop;
   state.dragMode = null;
   state.dragHandle = null;
   state.dragStart = null;
   state.dragOriginalBox = null;
+  state.dragWasDefaultLoop = false;
+  if (frameListChanged) {
+    refreshLoopJsonAfterFrameListChange(wasDefaultLoop);
+  }
   drawEditor();
   drawPreview();
 }
@@ -1085,11 +1286,8 @@ function downloadJson() {
       previewFps: Number(previewFpsInput.value),
       globalFrameHold: Number(previewFrameHoldInput.value),
       loopPauseMs: Number(previewPauseInput.value),
-      subLoop: {
-        enabled: previewSubLoopEnabledInput.checked,
-        startFrame: Number(previewSubLoopStartInput.value),
-        endFrame: Number(previewSubLoopEndInput.value),
-        repeats: Number(previewSubLoopRepeatsInput.value),
+      sequence: {
+        frames: serializeLoopSequence(),
       },
     },
     preview: {
@@ -1126,55 +1324,37 @@ function animatePreview(timestamp) {
   const fps = Number(previewFpsInput.value);
   const globalFrameHold = Math.max(1, Number(previewFrameHoldInput.value));
   const pauseDuration = Math.max(0, Number(previewPauseInput.value));
-  const subLoopEnabled = previewSubLoopEnabledInput.checked;
-  const subLoopStart = Math.max(0, Number(previewSubLoopStartInput.value) - 1);
-  const subLoopEnd = Math.max(subLoopStart, Number(previewSubLoopEndInput.value) - 1);
-  const subLoopRepeats = Math.max(0, Number(previewSubLoopRepeatsInput.value));
   const frameDuration = 1000 / Math.max(1, fps);
+  const entries = getPreviewEntries();
 
-  if (state.previewPlaying && state.boxes.length > 0) {
+  if (state.previewPlaying && state.boxes.length > 0 && entries.length > 0) {
     if (!state.previewLastTime) state.previewLastTime = timestamp;
     const elapsed = timestamp - state.previewLastTime;
 
     if (state.previewPauseRemaining > 0) {
       state.previewPauseRemaining = Math.max(0, state.previewPauseRemaining - elapsed);
       if (state.previewPauseRemaining === 0) {
-        state.previewFrame = 0;
+        setPreviewSequenceStep(0);
         drawPreview();
       }
     } else {
       state.previewAccum += elapsed;
       if (state.previewAccum >= frameDuration) {
         state.previewAccum = 0;
-        const currentBox = state.boxes[state.previewFrame];
-        const effectiveHold = Math.max(1, getBoxHold(currentBox) * globalFrameHold);
+        const currentEntry = entries[state.previewSequenceStep] || entries[0];
+        const currentBox = state.boxes[currentEntry.frameIndex];
+        const effectiveHold = Math.max(1, getBoxHold(currentBox) * globalFrameHold * currentEntry.hold);
         if (state.previewHoldTick < effectiveHold - 1) {
           state.previewHoldTick += 1;
         } else {
           state.previewHoldTick = 0;
-          if (
-            subLoopEnabled &&
-            state.previewFrame === subLoopEnd &&
-            subLoopStart < state.boxes.length &&
-            subLoopEnd < state.boxes.length
-          ) {
-            if (state.previewSubLoopRemaining === null) {
-              state.previewSubLoopRemaining = subLoopRepeats;
-            }
-            if (state.previewSubLoopRemaining > 0) {
-              state.previewSubLoopRemaining -= 1;
-              state.previewFrame = subLoopStart;
-            } else {
-              state.previewSubLoopRemaining = null;
-              state.previewFrame = Math.min(subLoopEnd + 1, state.boxes.length - 1);
-            }
-          } else if (state.previewFrame >= state.boxes.length - 1) {
+          if (state.previewSequenceStep >= entries.length - 1) {
             state.previewPauseRemaining = pauseDuration;
             if (pauseDuration === 0) {
-              state.previewFrame = 0;
+              setPreviewSequenceStep(0);
             }
           } else {
-            state.previewFrame += 1;
+            setPreviewSequenceStep(state.previewSequenceStep + 1);
           }
         }
         drawPreview();
@@ -1187,10 +1367,12 @@ function animatePreview(timestamp) {
 
 function duplicateSelected() {
   if (state.selectedIndex < 0) return;
+  const wasDefaultLoop = isLoopJsonDefaultForCount(state.boxes.length);
   const box = state.boxes[state.selectedIndex];
   const clone = { ...box, hold: getBoxHold(box), x: box.x + 4, y: box.y + 4 };
   state.boxes.splice(state.selectedIndex + 1, 0, clone);
   state.selectedIndex += 1;
+  refreshLoopJsonAfterFrameListChange(wasDefaultLoop);
   drawEditor();
   drawPreview();
 }
@@ -1213,9 +1395,10 @@ function copyHoldToAll() {
 
 function deleteSelected() {
   if (state.selectedIndex < 0) return;
+  const wasDefaultLoop = isLoopJsonDefaultForCount(state.boxes.length);
   state.boxes.splice(state.selectedIndex, 1);
   state.selectedIndex = clamp(state.selectedIndex, -1, state.boxes.length - 1);
-  state.previewFrame = 0;
+  refreshLoopJsonAfterFrameListChange(wasDefaultLoop);
   drawEditor();
   drawPreview();
 }
@@ -1269,6 +1452,7 @@ autoDetectBtn.addEventListener("click", autoDetectFrames);
 clearBoxesBtn.addEventListener("click", () => {
   state.boxes = [];
   state.selectedIndex = -1;
+  resetLoopJsonToFrames();
   drawEditor();
   drawPreview();
 });
@@ -1285,21 +1469,19 @@ copyToAllBtn.addEventListener("click", copySizeToAll);
 copyHoldToAllBtn.addEventListener("click", copyHoldToAll);
 
 prevFrameBtn.addEventListener("click", () => {
-  if (!state.boxes.length) return;
-  state.previewFrame = (state.previewFrame - 1 + state.boxes.length) % state.boxes.length;
+  if (!state.boxes.length || !getPreviewEntries().length) return;
+  setPreviewSequenceStep(state.previewSequenceStep - 1);
   state.previewAccum = 0;
   state.previewPauseRemaining = 0;
   state.previewHoldTick = 0;
-  state.previewSubLoopRemaining = null;
   drawPreview();
 });
 nextFrameBtn.addEventListener("click", () => {
-  if (!state.boxes.length) return;
-  state.previewFrame = (state.previewFrame + 1) % state.boxes.length;
+  if (!state.boxes.length || !getPreviewEntries().length) return;
+  setPreviewSequenceStep(state.previewSequenceStep + 1);
   state.previewAccum = 0;
   state.previewPauseRemaining = 0;
   state.previewHoldTick = 0;
-  state.previewSubLoopRemaining = null;
   drawPreview();
 });
 playPauseBtn.addEventListener("click", () => {
@@ -1307,14 +1489,18 @@ playPauseBtn.addEventListener("click", () => {
   state.previewLastTime = 0;
   updateInspector();
 });
+editorImageTabBtn.addEventListener("click", () => setEditorMode("image"));
+editorJsonTabBtn.addEventListener("click", () => setEditorMode("json"));
+resetLoopJsonBtn.addEventListener("click", resetLoopJsonToFrames);
+formatLoopJsonBtn.addEventListener("click", formatLoopJson);
+previewFpsInput.addEventListener("input", syncExportFpsToPreview);
 
-[toleranceInput, minAreaInput, paddingInput, mergeGapInput, cellWidthInput, cellHeightInput, framesPerRowInput, fpsInput, normalizeSidePaddingInput, normalizeTopPaddingInput, normalizeBottomPaddingInput, previewFpsInput, previewFrameHoldInput, previewPauseInput, previewBgInput, previewOpacityInput, previewGridStepInput, previewSubLoopEnabledInput, previewSubLoopStartInput, previewSubLoopEndInput, previewSubLoopRepeatsInput, previewShowGridInput, previewShowRulersInput, previewShowFitBoxInput].forEach((input) => {
+[toleranceInput, minAreaInput, paddingInput, mergeGapInput, cellWidthInput, cellHeightInput, framesPerRowInput, fpsInput, normalizeSidePaddingInput, normalizeTopPaddingInput, normalizeBottomPaddingInput, previewFpsInput, previewFrameHoldInput, previewPauseInput, previewBgInput, previewOpacityInput, previewGridStepInput, previewShowGridInput, previewShowRulersInput, previewShowFitBoxInput].forEach((input) => {
   input.addEventListener("input", () => {
     state.previewAccum = 0;
     state.previewPauseRemaining = 0;
     state.previewHoldTick = 0;
     state.previewLastTime = 0;
-    state.previewSubLoopRemaining = null;
     updateInspector();
     drawPreview();
   });
@@ -1329,6 +1515,7 @@ window.addEventListener("mousemove", continueDrag);
 window.addEventListener("mouseup", endDrag);
 
 window.addEventListener("keydown", (event) => {
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target?.tagName)) return;
   if (state.selectedIndex < 0) return;
   const box = state.boxes[state.selectedIndex];
   const step = event.shiftKey ? 10 : 1;
@@ -1345,6 +1532,8 @@ window.addEventListener("keydown", (event) => {
   drawPreview();
 });
 
+initializeLoopJsonEditor();
+resetLoopJsonToFrames();
 updateInspector();
 applyThemeMode(getStoredThemeMode());
 if (buildInfo) {

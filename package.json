@@ -7,6 +7,11 @@
     "deploy:dry-run": "npm run build"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "wrangler": "^4.86.0"
+  },
+  "dependencies": {
+    "@codemirror/lang-json": "^6.0.2",
+    "codemirror": "^6.0.2"
   }
 }
