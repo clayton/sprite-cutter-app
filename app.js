@@ -169,7 +169,7 @@ function formatBuildInfo() {
   const version = info.version || "dev";
   const commit = info.commit || "local";
   const builtAt = info.builtAt ? new Date(info.builtAt).toLocaleString() : "unbuilt";
-  return `Version ${version} | ${commit} | ${builtAt}`;
+  return `v${version} | ${commit} | ${builtAt}`;
 }
 
 function buildGridBoxes(boxes, cellWidth, cellHeight, framesPerRow, imageWidth, imageHeight) {
@@ -371,7 +371,8 @@ function drawCheckerboard(ctx, width, height, size) {
   }
 }
 
-function drawPreviewGuides(ctx, width, height, placement, options) {
+function drawPreviewGuides(ctx, frameRect, placement, options) {
+  const { x: frameX, y: frameY, width, height } = frameRect;
   const step = Math.max(8, options.previewGridStep || 32);
 
   if (options.previewShowGrid) {
@@ -380,14 +381,14 @@ function drawPreviewGuides(ctx, width, height, placement, options) {
     ctx.lineWidth = 1;
     for (let x = step; x < width; x += step) {
       ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, height);
+      ctx.moveTo(frameX + x + 0.5, frameY);
+      ctx.lineTo(frameX + x + 0.5, frameY + height);
       ctx.stroke();
     }
     for (let y = step; y < height; y += step) {
       ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(width, y + 0.5);
+      ctx.moveTo(frameX, frameY + y + 0.5);
+      ctx.lineTo(frameX + width, frameY + y + 0.5);
       ctx.stroke();
     }
     ctx.restore();
@@ -399,8 +400,8 @@ function drawPreviewGuides(ctx, width, height, placement, options) {
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 3]);
     ctx.strokeRect(
-      placement.dx + 0.5,
-      placement.dy + 0.5,
+      frameX + placement.dx + 0.5,
+      frameY + placement.dy + 0.5,
       Math.max(0, placement.drawWidth - 1),
       Math.max(0, placement.drawHeight - 1)
     );
@@ -409,38 +410,40 @@ function drawPreviewGuides(ctx, width, height, placement, options) {
 
   if (options.previewShowRulers) {
     ctx.save();
-    ctx.strokeStyle = "rgba(239, 245, 255, 0.78)";
-    ctx.fillStyle = "rgba(239, 245, 255, 0.85)";
+    ctx.strokeStyle = "rgba(239, 245, 255, 0.9)";
+    ctx.fillStyle = "rgba(239, 245, 255, 0.95)";
     ctx.lineWidth = 1;
     ctx.font = "10px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
 
     ctx.beginPath();
-    ctx.moveTo(0.5, 0);
-    ctx.lineTo(0.5, height);
-    ctx.moveTo(0, height - 0.5);
-    ctx.lineTo(width, height - 0.5);
+    ctx.moveTo(frameX - 0.5, frameY);
+    ctx.lineTo(frameX - 0.5, frameY + height);
+    ctx.moveTo(frameX, frameY + height + 0.5);
+    ctx.lineTo(frameX + width, frameY + height + 0.5);
     ctx.stroke();
 
     for (let y = 0; y <= height; y += step) {
-      const py = Math.max(0, height - y - 0.5);
+      const py = frameY + Math.max(0, height - y - 0.5);
       ctx.beginPath();
-      ctx.moveTo(0, py + 0.5);
-      ctx.lineTo(8, py);
+      ctx.moveTo(frameX - 8, py + 0.5);
+      ctx.lineTo(frameX, py + 0.5);
       ctx.stroke();
-      if (y <= height) ctx.fillText(String(y), 10, Math.max(10, Math.min(py, height - 10)));
+      if (y <= height) {
+        ctx.fillText(String(y), Math.max(2, frameX - 30), Math.max(frameY + 10, Math.min(py, frameY + height - 10)));
+      }
     }
 
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     for (let x = 0; x <= width; x += step) {
-      const px = Math.min(x, width - 1) + 0.5;
+      const px = frameX + Math.min(x, width - 1) + 0.5;
       ctx.beginPath();
-      ctx.moveTo(px, height - 8);
-      ctx.lineTo(px, height);
+      ctx.moveTo(px, frameY + height);
+      ctx.lineTo(px, frameY + height + 8);
       ctx.stroke();
-      if (x <= width) ctx.fillText(String(x), Math.min(x, width - 1), height - 10);
+      if (x <= width) ctx.fillText(String(x), Math.min(frameX + x, frameX + width - 1), frameY + height + 20);
     }
 
     ctx.restore();
@@ -455,22 +458,35 @@ function drawPreview() {
     previewBg,
     previewOpacity,
   } = readInputs();
-  previewCanvas.width = cellWidth;
-  previewCanvas.height = cellHeight;
+  const showRulers = readInputs().previewShowRulers;
+  const rulerLeft = showRulers ? 36 : 0;
+  const rulerBottom = showRulers ? 28 : 0;
+  const rulerTop = 8;
+  const frameRect = {
+    x: rulerLeft,
+    y: rulerTop,
+    width: cellWidth,
+    height: cellHeight,
+  };
+  previewCanvas.width = cellWidth + rulerLeft;
+  previewCanvas.height = cellHeight + rulerTop + rulerBottom;
   previewCtx.imageSmoothingEnabled = false;
   drawCheckerboard(previewCtx, previewCanvas.width, previewCanvas.height, 16);
+  previewCtx.strokeStyle = "rgba(125, 160, 220, 0.28)";
+  previewCtx.lineWidth = 1;
+  previewCtx.strokeRect(frameRect.x + 0.5, frameRect.y + 0.5, frameRect.width - 1, frameRect.height - 1);
   if (previewOpacity > 0) {
     previewCtx.fillStyle = hexToRgba(previewBg, previewOpacity / 100);
-    previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+    previewCtx.fillRect(frameRect.x, frameRect.y, frameRect.width, frameRect.height);
   }
 
   if (state.image && state.boxes.length) {
     const box = state.boxes[state.previewFrame % state.boxes.length];
     const frame = getNormalizedFrame(box, cellWidth, cellHeight);
-    previewCtx.drawImage(frame, 0, 0);
-    drawPreviewGuides(previewCtx, cellWidth, cellHeight, getNormalizedPlacement(box, cellWidth, cellHeight), readInputs());
+    previewCtx.drawImage(frame, frameRect.x, frameRect.y);
+    drawPreviewGuides(previewCtx, frameRect, getNormalizedPlacement(box, cellWidth, cellHeight), readInputs());
   } else {
-    drawPreviewGuides(previewCtx, cellWidth, cellHeight, null, readInputs());
+    drawPreviewGuides(previewCtx, frameRect, null, readInputs());
   }
 
   previewCanvas.style.width = "100%";
