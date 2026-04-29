@@ -1,4 +1,4 @@
-# Sprite Cutter
+# SpriteSlice
 
 Local-first static app for rebuilding the core `spriter.app` workflow:
 
