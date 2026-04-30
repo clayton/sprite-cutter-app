@@ -62,6 +62,7 @@ const fpsInput = document.getElementById("fpsInput");
 const normalizeSidePaddingInput = document.getElementById("normalizeSidePaddingInput");
 const normalizeTopPaddingInput = document.getElementById("normalizeTopPaddingInput");
 const normalizeBottomPaddingInput = document.getElementById("normalizeBottomPaddingInput");
+const normalizeTargetHeightInput = document.getElementById("normalizeTargetHeightInput");
 const normalizeScaleInput = document.getElementById("normalizeScaleInput");
 const previewFpsInput = document.getElementById("previewFpsInput");
 const previewFrameHoldInput = document.getElementById("previewFrameHoldInput");
@@ -185,6 +186,7 @@ function readInputs() {
     normalizeSidePadding: Number(normalizeSidePaddingInput.value),
     normalizeTopPadding: Number(normalizeTopPaddingInput.value),
     normalizeBottomPadding: Number(normalizeBottomPaddingInput.value),
+    normalizeTargetHeight: Number(normalizeTargetHeightInput.value),
     normalizeScale: Number(normalizeScaleInput.value),
     previewFps: Number(previewFpsInput.value),
     previewFrameHold: Number(previewFrameHoldInput.value),
@@ -781,6 +783,7 @@ function getNormalizedPlacement(box, cellWidth, cellHeight) {
     normalizeSidePadding,
     normalizeTopPadding,
     normalizeBottomPadding,
+    normalizeTargetHeight,
     normalizeScale,
   } = readInputs();
   const sidePadding = Math.max(0, normalizeSidePadding);
@@ -789,8 +792,10 @@ function getNormalizedPlacement(box, cellWidth, cellHeight) {
   const scaleMultiplier = Math.max(0.01, normalizeScale / 100 || 1);
   const availableWidth = Math.max(1, cellWidth - sidePadding * 2);
   const availableHeight = Math.max(1, cellHeight - topPadding - bottomPadding);
+  const targetHeight = Math.max(0, normalizeTargetHeight);
+  const baseScale = targetHeight > 0 ? targetHeight / box.height : 1;
   const fitScale = Math.min(availableWidth / box.width, availableHeight / box.height);
-  const scale = Math.min(scaleMultiplier, fitScale);
+  const scale = Math.min(baseScale * scaleMultiplier, fitScale);
   const drawWidth = Math.max(1, Math.round(box.width * scale));
   const drawHeight = Math.max(1, Math.round(box.height * scale));
   const dx = Math.round(sidePadding + (availableWidth - drawWidth) / 2);
@@ -896,6 +901,7 @@ function applyProjectData(project) {
   setNumericInput(normalizeSidePaddingInput, exportSettings.normalizeSidePadding, 0);
   setNumericInput(normalizeTopPaddingInput, exportSettings.normalizeTopPadding, 0);
   setNumericInput(normalizeBottomPaddingInput, exportSettings.normalizeBottomPadding, 0);
+  setNumericInput(normalizeTargetHeightInput, exportSettings.normalizeTargetHeight, 0);
   setNumericInput(normalizeScaleInput, exportSettings.normalizeScale, 100);
 
   setNumericInput(previewFpsInput, playback.previewFps ?? exportSettings.fps, 12);
@@ -1288,6 +1294,7 @@ function downloadJson() {
       normalizeSidePadding: Number(normalizeSidePaddingInput.value),
       normalizeTopPadding: Number(normalizeTopPaddingInput.value),
       normalizeBottomPadding: Number(normalizeBottomPaddingInput.value),
+      normalizeTargetHeight: Number(normalizeTargetHeightInput.value),
       normalizeScale: Number(normalizeScaleInput.value),
     },
     playback: {
@@ -1503,7 +1510,7 @@ resetLoopJsonBtn.addEventListener("click", resetLoopJsonToFrames);
 formatLoopJsonBtn.addEventListener("click", formatLoopJson);
 previewFpsInput.addEventListener("input", syncExportFpsToPreview);
 
-[toleranceInput, minAreaInput, paddingInput, mergeGapInput, cellWidthInput, cellHeightInput, framesPerRowInput, fpsInput, normalizeSidePaddingInput, normalizeTopPaddingInput, normalizeBottomPaddingInput, normalizeScaleInput, previewFpsInput, previewFrameHoldInput, previewPauseInput, previewBgInput, previewOpacityInput, previewGridStepInput, previewShowGridInput, previewShowRulersInput, previewShowFitBoxInput].forEach((input) => {
+[toleranceInput, minAreaInput, paddingInput, mergeGapInput, cellWidthInput, cellHeightInput, framesPerRowInput, fpsInput, normalizeSidePaddingInput, normalizeTopPaddingInput, normalizeBottomPaddingInput, normalizeTargetHeightInput, normalizeScaleInput, previewFpsInput, previewFrameHoldInput, previewPauseInput, previewBgInput, previewOpacityInput, previewGridStepInput, previewShowGridInput, previewShowRulersInput, previewShowFitBoxInput].forEach((input) => {
   input.addEventListener("input", () => {
     state.previewAccum = 0;
     state.previewPauseRemaining = 0;
