@@ -44,6 +44,7 @@ const downloadSheetBtn = document.getElementById("downloadSheetBtn");
 const downloadJsonBtn = document.getElementById("downloadJsonBtn");
 const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
 const duplicateSelectedBtn = document.getElementById("duplicateSelectedBtn");
+const duplicateBeforeBtn = document.getElementById("duplicateBeforeBtn");
 const copyToAllBtn = document.getElementById("copyToAllBtn");
 const copyHoldToAllBtn = document.getElementById("copyHoldToAllBtn");
 const prevFrameBtn = document.getElementById("prevFrameBtn");
@@ -92,6 +93,8 @@ const boxYInput = document.getElementById("boxYInput");
 const boxWidthInput = document.getElementById("boxWidthInput");
 const boxHeightInput = document.getElementById("boxHeightInput");
 const boxHoldInput = document.getElementById("boxHoldInput");
+const boxOffsetXInput = document.getElementById("boxOffsetXInput");
+const boxOffsetYInput = document.getElementById("boxOffsetYInput");
 
 const HANDLE_SIZE = 12;
 const HANDLE_HIT_SIZE = 16;
@@ -150,6 +153,14 @@ function cycleThemeMode() {
 
 function getBoxHold(box) {
   return Math.max(1, Number(box?.hold ?? 1));
+}
+
+function getBoxOffsetX(box) {
+  return Number.isFinite(Number(box?.offsetX)) ? Number(box.offsetX) : 0;
+}
+
+function getBoxOffsetY(box) {
+  return Number.isFinite(Number(box?.offsetY)) ? Number(box.offsetY) : 0;
 }
 
 function getThemeSurfaceColors() {
@@ -431,6 +442,8 @@ function buildGridBoxes(boxes, cellWidth, cellHeight, framesPerRow, imageWidth, 
       width: Math.min(cellWidth, Math.max(1, imageWidth - x)),
       height: Math.min(cellHeight, Math.max(1, imageHeight - y)),
       hold: getBoxHold(box),
+      offsetX: getBoxOffsetX(box),
+      offsetY: getBoxOffsetY(box),
     };
   });
 }
@@ -520,24 +533,28 @@ function updateInspector() {
   if (state.selectedIndex < 0 || !state.boxes[state.selectedIndex]) {
     selectedLabel.textContent = "None";
     boxStats.textContent = "x: -, y: -, w: -, h: -";
-    [boxXInput, boxYInput, boxWidthInput, boxHeightInput, boxHoldInput].forEach((input) => {
+    [boxXInput, boxYInput, boxWidthInput, boxHeightInput, boxHoldInput, boxOffsetXInput, boxOffsetYInput].forEach((input) => {
       input.value = "";
       input.disabled = true;
     });
   } else {
     const box = state.boxes[state.selectedIndex];
     selectedLabel.textContent = `#${state.selectedIndex + 1}`;
-    boxStats.textContent = `x: ${Math.round(box.x)}, y: ${Math.round(box.y)}, w: ${Math.round(box.width)}, h: ${Math.round(box.height)}`;
+    boxStats.textContent = `x: ${Math.round(box.x)}, y: ${Math.round(box.y)}, w: ${Math.round(box.width)}, h: ${Math.round(box.height)}, out: ${getBoxOffsetX(box)}, ${getBoxOffsetY(box)}`;
     boxXInput.disabled = false;
     boxYInput.disabled = false;
     boxWidthInput.disabled = false;
     boxHeightInput.disabled = false;
     boxHoldInput.disabled = false;
+    boxOffsetXInput.disabled = false;
+    boxOffsetYInput.disabled = false;
     boxXInput.value = Math.round(box.x);
     boxYInput.value = Math.round(box.y);
     boxWidthInput.value = Math.round(box.width);
     boxHeightInput.value = Math.round(box.height);
     boxHoldInput.value = getBoxHold(box);
+    boxOffsetXInput.value = getBoxOffsetX(box);
+    boxOffsetYInput.value = getBoxOffsetY(box);
   }
 
   const entries = getPreviewEntries();
@@ -798,8 +815,8 @@ function getNormalizedPlacement(box, cellWidth, cellHeight) {
   const scale = Math.min(baseScale * scaleMultiplier, fitScale);
   const drawWidth = Math.max(1, Math.round(box.width * scale));
   const drawHeight = Math.max(1, Math.round(box.height * scale));
-  const dx = Math.round(sidePadding + (availableWidth - drawWidth) / 2);
-  const dy = Math.round(cellHeight - bottomPadding - drawHeight);
+  const dx = Math.round(sidePadding + (availableWidth - drawWidth) / 2 + getBoxOffsetX(box));
+  const dy = Math.round(cellHeight - bottomPadding - drawHeight + getBoxOffsetY(box));
   return { dx, dy, drawWidth, drawHeight };
 }
 
@@ -886,6 +903,8 @@ function applyProjectData(project) {
           width: Number(box.width),
           height: Number(box.height),
           hold: Math.max(1, Number(box.hold ?? 1)),
+          offsetX: getBoxOffsetX(box),
+          offsetY: getBoxOffsetY(box),
         }))
         .filter((box) => [box.x, box.y, box.width, box.height].every((v) => Number.isFinite(v)))
     : [];
@@ -1046,6 +1065,8 @@ function autoDetectFrames() {
           width: clamp(maxX - minX + 1 + padding * 2, 1, width),
           height: clamp(maxY - minY + 1 + padding * 2, 1, height),
           hold: 1,
+          offsetX: 0,
+          offsetY: 0,
         });
       }
     }
@@ -1102,7 +1123,7 @@ function unionBox(a, b) {
   const y = Math.min(a.y, b.y);
   const x2 = Math.max(a.x + a.width, b.x + b.width);
   const y2 = Math.max(a.y + a.height, b.y + b.height);
-  return { x, y, width: x2 - x, height: y2 - y };
+  return { x, y, width: x2 - x, height: y2 - y, hold: getBoxHold(a), offsetX: getBoxOffsetX(a), offsetY: getBoxOffsetY(a) };
 }
 
 function getPixel(data, width, x, y) {
@@ -1165,7 +1186,7 @@ function startDrag(event) {
   state.dragStart = point;
   state.dragOriginalBox = null;
   state.dragWasDefaultLoop = isLoopJsonDefaultForCount(state.boxes.length);
-  state.boxes.push({ x: point.x, y: point.y, width: 1, height: 1, hold: 1 });
+  state.boxes.push({ x: point.x, y: point.y, width: 1, height: 1, hold: 1, offsetX: 0, offsetY: 0 });
   drawEditor();
   drawPreview();
 }
@@ -1253,12 +1274,16 @@ function applyBoxInputs() {
   const nextWidth = clamp(Number(boxWidthInput.value || 1), 1, state.image.width - nextX);
   const nextHeight = clamp(Number(boxHeightInput.value || 1), 1, state.image.height - nextY);
   const nextHold = Math.max(1, Number(boxHoldInput.value || 1));
+  const nextOffsetX = Number(boxOffsetXInput.value || 0);
+  const nextOffsetY = Number(boxOffsetYInput.value || 0);
 
   box.x = nextX;
   box.y = nextY;
   box.width = nextWidth;
   box.height = nextHeight;
   box.hold = nextHold;
+  box.offsetX = Number.isFinite(nextOffsetX) ? nextOffsetX : 0;
+  box.offsetY = Number.isFinite(nextOffsetY) ? nextOffsetY : 0;
   drawEditor();
   drawPreview();
 }
@@ -1285,7 +1310,13 @@ function downloadJson() {
           height: state.image.height,
         }
       : null,
-    boxes: state.boxes.map((box, index) => ({ id: index + 1, ...box, hold: getBoxHold(box) })),
+    boxes: state.boxes.map((box, index) => ({
+      id: index + 1,
+      ...box,
+      hold: getBoxHold(box),
+      offsetX: getBoxOffsetX(box),
+      offsetY: getBoxOffsetY(box),
+    })),
     export: {
       cellWidth: Number(cellWidthInput.value),
       cellHeight: Number(cellHeightInput.value),
@@ -1380,13 +1411,19 @@ function animatePreview(timestamp) {
   requestAnimationFrame(animatePreview);
 }
 
-function duplicateSelected() {
+function duplicateSelected(position = "after") {
   if (state.selectedIndex < 0) return;
   const wasDefaultLoop = isLoopJsonDefaultForCount(state.boxes.length);
   const box = state.boxes[state.selectedIndex];
-  const clone = { ...box, hold: getBoxHold(box), x: box.x + 4, y: box.y + 4 };
-  state.boxes.splice(state.selectedIndex + 1, 0, clone);
-  state.selectedIndex += 1;
+  const insertIndex = position === "before" ? state.selectedIndex : state.selectedIndex + 1;
+  const clone = {
+    ...box,
+    hold: getBoxHold(box),
+    offsetX: getBoxOffsetX(box),
+    offsetY: getBoxOffsetY(box),
+  };
+  state.boxes.splice(insertIndex, 0, clone);
+  state.selectedIndex = insertIndex;
   refreshLoopJsonAfterFrameListChange(wasDefaultLoop);
   drawEditor();
   drawPreview();
@@ -1479,7 +1516,8 @@ sortBoxesBtn.addEventListener("click", () => {
 downloadSheetBtn.addEventListener("click", downloadSheet);
 downloadJsonBtn.addEventListener("click", downloadJson);
 deleteSelectedBtn.addEventListener("click", deleteSelected);
-duplicateSelectedBtn.addEventListener("click", duplicateSelected);
+duplicateBeforeBtn.addEventListener("click", () => duplicateSelected("before"));
+duplicateSelectedBtn.addEventListener("click", () => duplicateSelected("after"));
 copyToAllBtn.addEventListener("click", copySizeToAll);
 copyHoldToAllBtn.addEventListener("click", copyHoldToAll);
 
@@ -1521,7 +1559,7 @@ previewFpsInput.addEventListener("input", syncExportFpsToPreview);
   });
 });
 
-[boxXInput, boxYInput, boxWidthInput, boxHeightInput, boxHoldInput].forEach((input) => {
+[boxXInput, boxYInput, boxWidthInput, boxHeightInput, boxHoldInput, boxOffsetXInput, boxOffsetYInput].forEach((input) => {
   input.addEventListener("input", applyBoxInputs);
 });
 

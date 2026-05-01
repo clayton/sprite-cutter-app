@@ -91,10 +91,19 @@
                   Frame Hold
                   <input id="boxHoldInput" type="number" min="1" step="1" value="1" />
                 </label>
+                <label>
+                  Output X
+                  <input id="boxOffsetXInput" type="number" step="1" value="0" />
+                </label>
+                <label>
+                  Output Y
+                  <input id="boxOffsetYInput" type="number" step="1" value="0" />
+                </label>
               </div>
               <div class="button-row dense-row">
                 <button id="deleteSelectedBtn" type="button">Delete</button>
-                <button id="duplicateSelectedBtn" type="button">Duplicate</button>
+                <button id="duplicateBeforeBtn" type="button">Duplicate Before</button>
+                <button id="duplicateSelectedBtn" type="button">Duplicate After</button>
                 <button id="copyToAllBtn" type="button">Copy Size</button>
                 <button id="copyHoldToAllBtn" type="button">Copy Hold</button>
               </div>
